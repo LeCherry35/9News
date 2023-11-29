@@ -1,0 +1,115 @@
+function loadRegulation() {
+    const modalMarkup = 
+    '<style>' +
+    '#acceptCookieModal { font-family: Arial, Helvetica, sans-serif; position: fixed; z-index: 99999; padding-top: 100px; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgb(0,0,0); background-color: rgba(0,0,0,0.7); }' +
+    '#acceptCookieModal .modalCookieItem h2 { font-size: 1.5em; }' +
+    '#acceptCookieModal .modalCookieItem { background: linear-gradient(180deg,#000 0,#39579a 42%,#39579a 0,#39579a 0,#39579a 0,#1a70b7 54%,#7db9e8); color: #fefefe; margin: auto; padding: 20px; width: 20%; min-width:300px; }' +
+    '#acceptCookieModal .modalCookieItem a { color: #fff; text-decoration: underline; }' +
+    '#acceptCookieModal .modalCookieItem .modalCookieAgree { border-radius: 3px; color: #fff; display: inline-block; line-height: 1.375; text-decoration: none; text-transform: uppercase; transition: color,background-color .3s; vertical-align: middle; background: #5da9e4; background-image: linear-gradient(180deg,#5da9e4 1%,#3184c9 88%); box-shadow: 1px 1px 0 0 #3184c9; padding: 10px 40px; cursor: pointer; margin-top:10px; }' +
+    '</style>' +
+    '<div id="acceptCookieModal">' +
+    '  <div class="modalCookieItem">' +
+    '    <h2>We use cookies!</h2>' +
+    '	<div>' +
+    '       <p>By clicking \'OK\', you agree to our and our trusted partners\' use of cookies to enable you to sign in and use our services, measure the performance of our site, provide you with content and advertising tailored to your interests, determine the effectiveness of advertisements and allow you to connect on social media.</p>' +
+    '		<p>You can find out more information on our <a href="https://login.nine.com.au/privacy?client_id=9nowweb#section-cookies" target="_blank">Privacy Policy</a>.</p>' +
+    '	</div>' +
+    '	<a class="modalCookieAgree" href="#" title="Click to accept cookies">OK, agreed!</a>' +
+    '  </div>' +
+    '</div>';
+
+    function getCookieAcceptGDPR() {
+        let name = 'AcceptGDPRCookies=';
+        let decodedCookie = decodeURIComponent(document.cookie);
+        let cookieArray = decodedCookie.split(';');
+        for(let i = 0; i < cookieArray.length; i++) {
+            let cookie = cookieArray[i];
+            while (cookie.charAt(0) == ' ') {
+                cookie = cookie.substring(1);
+            }
+            if (cookie.indexOf(name) == 0) {
+                return cookie.substring(name.length, cookie.length);
+            }
+        }
+        return false;
+    }
+
+    function setCookieAcceptGDPR() {
+        let date = new Date();
+        date.setTime(date.getTime() + (365*24*60*60*1000));
+        let expires = 'expires='+ date.toUTCString();
+        document.cookie = 'AcceptGDPRCookies=true;' + expires + ';domain=.' + getRootDomain() + ';path=/';
+    }
+
+    function getLocalStorageGDPR() {
+        if(window.localStorage) {
+            return localStorage.getItem('AcceptGDPRLocal');
+        }
+
+        return false;
+    }
+
+    function setLocalStorageGDPR() {
+        if(window.localStorage) {
+            localStorage.setItem('AcceptGDPRLocal', 'true');
+        }
+    }
+
+    function checkEuropeanRequirement(callback) {
+        if(getCookieAcceptGDPR() || getLocalStorageGDPR()) {
+            return callback(false);
+        }
+        
+        let url = 'https://loc.api.nine.com.au/api/location/iseuro';
+        let xmlhttp = new XMLHttpRequest();
+        xmlhttp.onreadystatechange = function() {
+            if (this.readyState == 4) {
+				if(this.status == 200) {
+					let isEuro = JSON.parse(this.responseText).isEuro;
+					if(!isEuro) {
+                        setCookieAcceptGDPR();
+                        setLocalStorageGDPR();
+					}
+					return callback(isEuro);
+				}				
+				return callback(false);
+            }
+        };
+        xmlhttp.onerror = function() {
+            setCookieAcceptGDPR();
+            setLocalStorageGDPR();
+            return callback(false);
+        }
+        xmlhttp.open('GET', url);
+        xmlhttp.send();
+    }
+
+    function getRootDomain() {
+        let hostnameArray = location.hostname.replace('www.','').split('.');
+        let splice = hostnameArray[hostnameArray.length-1].length === 2 && hostnameArray.length > 2 ? 3 : 2;
+        return location.hostname.split('.').reverse().splice(0,splice).reverse().join('.');
+    }
+
+    function acceptGDPR() {
+        setCookieAcceptGDPR();
+        setLocalStorageGDPR();
+        let modal = document.getElementById('acceptCookieModal');
+        modal.hidden = true;
+		return false;
+    }
+
+	checkEuropeanRequirement(function(displayModal) {
+		if(displayModal) {
+			let div = document.createElement('div');
+			div.innerHTML = modalMarkup;
+			let style = div.children[0];
+			let dom = div.children[1];		
+			let modalCookie = dom.getElementsByClassName('modalCookieAgree')[0];
+			modalCookie.onclick = acceptGDPR;
+			document.body.appendChild(style);
+			document.body.appendChild(dom);	
+		}
+	})
+}
+
+loadRegulation();
